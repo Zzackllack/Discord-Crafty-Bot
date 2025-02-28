@@ -2,13 +2,12 @@ import discord
 from discord.ext import commands
 import requests
 import json
-import os
 import urllib3
 
-# Suppress insecure request warnings if you use self-signed certificates.
+# Disable insecure warnings (if using self-signed certificates)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Load configuration from config.json
+# Load configuration
 with open("config.json", "r") as config_file:
     config = json.load(config_file)
 
@@ -16,23 +15,37 @@ DISCORD_TOKEN = config.get("discord_token")
 CRAFTY_API_TOKEN = config.get("crafty_api_token")
 CRAFTY_API_URL = config.get("crafty_api_url", "https://localhost:8443/api/v2")
 
-# Prepare default headers for API calls
+# Common headers for API calls
 HEADERS = {
     "Authorization": f"Bearer {CRAFTY_API_TOKEN}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
-# Set up Discord bot with command prefix !
+# Set up the bot with default intents
 intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", intents=intents, description="Crafty Controller Bot")
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+# When the bot is ready, sync slash commands
+@bot.event
+async def on_ready():
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} commands!")
+    except Exception as e:
+        print(f"Error syncing commands: {e}")
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+
 
 # -----------------------------
-# Command: List All Servers
+# Slash Command: List Servers
 # -----------------------------
-@bot.command(name="servers", help="List all available Minecraft servers")
-async def list_servers(ctx):
+@bot.tree.command(name="servers", description="List all available Minecraft servers")
+async def servers(interaction: discord.Interaction):
     try:
-        response = requests.get(f"{CRAFTY_API_URL}/servers", headers=HEADERS, verify=False)
+        response = requests.get(
+            f"{CRAFTY_API_URL}/servers", headers=HEADERS, verify=False
+        )
         data = response.json()
         if data.get("status") == "ok":
             servers = data.get("data", [])
@@ -46,15 +59,20 @@ async def list_servers(ctx):
             message = "Failed to retrieve servers."
     except Exception as e:
         message = f"Error retrieving servers: {str(e)}"
-    await ctx.send(message)
+    await interaction.response.send_message(message)
+
 
 # -----------------------------
-# Command: Get Server Information
+# Slash Command: Server Info
 # -----------------------------
-@bot.command(name="serverinfo", help="Get details of a server. Usage: !serverinfo <server_id>")
-async def server_info(ctx, server_id: str):
+@bot.tree.command(
+    name="serverinfo", description="Get details of a server. Provide the server ID."
+)
+async def serverinfo(interaction: discord.Interaction, server_id: str):
     try:
-        response = requests.get(f"{CRAFTY_API_URL}/servers/{server_id}", headers=HEADERS, verify=False)
+        response = requests.get(
+            f"{CRAFTY_API_URL}/servers/{server_id}", headers=HEADERS, verify=False
+        )
         data = response.json()
         if data.get("status") == "ok":
             server = data.get("data", {})
@@ -67,18 +85,25 @@ async def server_info(ctx, server_id: str):
                 f"• **Port:** {server.get('server_port')}\n"
             )
         else:
-            message = f"Failed to retrieve information for server ID {server_id}."
+            message = f"Failed to retrieve information for server ID `{server_id}`."
     except Exception as e:
         message = f"Error: {str(e)}"
-    await ctx.send(message)
+    await interaction.response.send_message(message)
+
 
 # -----------------------------
-# Command: Start a Server
+# Slash Command: Start Server
 # -----------------------------
-@bot.command(name="start", help="Start a server. Usage: !start <server_id>")
-async def start_server(ctx, server_id: str):
+@bot.tree.command(
+    name="start", description="Start a server by providing its server ID."
+)
+async def start(interaction: discord.Interaction, server_id: str):
     try:
-        response = requests.post(f"{CRAFTY_API_URL}/servers/{server_id}/action/start_server", headers=HEADERS, verify=False)
+        response = requests.post(
+            f"{CRAFTY_API_URL}/servers/{server_id}/action/start_server",
+            headers=HEADERS,
+            verify=False,
+        )
         data = response.json()
         if data.get("status") == "ok":
             message = f"Server **{server_id}** is starting."
@@ -86,15 +111,20 @@ async def start_server(ctx, server_id: str):
             message = f"Failed to start server **{server_id}**."
     except Exception as e:
         message = f"Error: {str(e)}"
-    await ctx.send(message)
+    await interaction.response.send_message(message)
+
 
 # -----------------------------
-# Command: Stop a Server
+# Slash Command: Stop Server
 # -----------------------------
-@bot.command(name="stop", help="Stop a server. Usage: !stop <server_id>")
-async def stop_server(ctx, server_id: str):
+@bot.tree.command(name="stop", description="Stop a server by providing its server ID.")
+async def stop(interaction: discord.Interaction, server_id: str):
     try:
-        response = requests.post(f"{CRAFTY_API_URL}/servers/{server_id}/action/stop_server", headers=HEADERS, verify=False)
+        response = requests.post(
+            f"{CRAFTY_API_URL}/servers/{server_id}/action/stop_server",
+            headers=HEADERS,
+            verify=False,
+        )
         data = response.json()
         if data.get("status") == "ok":
             message = f"Server **{server_id}** is stopping."
@@ -102,39 +132,41 @@ async def stop_server(ctx, server_id: str):
             message = f"Failed to stop server **{server_id}**."
     except Exception as e:
         message = f"Error: {str(e)}"
-    await ctx.send(message)
+    await interaction.response.send_message(message)
+
 
 # -----------------------------
-# Command: Get Server Logs
+# Slash Command: Get Server Logs
 # -----------------------------
-@bot.command(name="logs", help="Get the last few lines of a server's logs. Usage: !logs <server_id>")
-async def get_logs(ctx, server_id: str):
+@bot.tree.command(
+    name="logs",
+    description="Display the last few lines of a server's logs by providing its server ID.",
+)
+async def logs(interaction: discord.Interaction, server_id: str):
     try:
-        # Use query parameters to get raw log file data (adjust as needed)
+        # Adjust query parameters as needed
         params = {"raw": "true", "file": "true"}
-        response = requests.get(f"{CRAFTY_API_URL}/servers/{server_id}/logs", headers=HEADERS, params=params, verify=False)
+        response = requests.get(
+            f"{CRAFTY_API_URL}/servers/{server_id}/logs",
+            headers=HEADERS,
+            params=params,
+            verify=False,
+        )
         data = response.json()
         if data.get("status") == "ok":
-            logs = data.get("data", [])
-            if logs:
-                # To avoid hitting Discord's message limit, only show the last 10 lines
-                log_text = "\n".join(logs[-10:])
+            log_lines = data.get("data", [])
+            if log_lines:
+                # Show only the last 10 lines to avoid message limits
+                log_text = "\n".join(log_lines[-10:])
                 message = f"**Logs for server {server_id}:**\n```{log_text}```"
             else:
                 message = "No logs available for this server."
         else:
-            message = f"Failed to retrieve logs for server {server_id}."
+            message = f"Failed to retrieve logs for server `{server_id}`."
     except Exception as e:
         message = f"Error: {str(e)}"
-    await ctx.send(message)
+    await interaction.response.send_message(message)
 
-# -----------------------------
-# Bot Ready Event
-# -----------------------------
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user.name} (ID: {bot.user.id})")
-    print("Crafty Controller Bot is now running!")
 
-# Run the bot using the Discord token from config.json
+# Run the bot
 bot.run(DISCORD_TOKEN)

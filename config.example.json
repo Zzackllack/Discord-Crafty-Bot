@@ -1,0 +1,5 @@
+{
+    "discord_token": "YOUR_DISCORD_BOT_TOKEN_HERE",
+    "crafty_api_token": "YOUR_CRAFTY_API_TOKEN_HERE",
+    "crafty_api_url": "https://localhost:8443/api/v2"
+}

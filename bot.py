@@ -21,8 +21,9 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-# Set up the bot with default intents
+# Set up the bot with required intents
 intents = discord.Intents.default()
+intents.message_content = True  # Enable message content intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 

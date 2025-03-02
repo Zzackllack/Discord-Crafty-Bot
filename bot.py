@@ -109,10 +109,10 @@ async def serverinfo(interaction: discord.Interaction, server_id: str):
             f"{CRAFTY_API_URL}/servers/{server_id}", headers=HEADERS, verify=False
         )
         data = response.json()
-        
+
         if data.get("status") == "ok":
             server = data.get("data", {})
-            
+
             # Get server status
             status = "⚠️ Unknown"
             try:
@@ -128,11 +128,18 @@ async def serverinfo(interaction: discord.Interaction, server_id: str):
             except:
                 status = "⚠️ Status Unavailable"
 
-            # Get server IP address
-            server_ip = server.get('server_ip')
-            if server_ip == "127.0.0.1" or server_ip == "localhost" or server_ip == "docker_internal":
-                server_ip = "Failed to retrieve public IP address"
-            
+            # Get public server IP address
+            public_server_ip = server.get('server_ip')
+            if (
+                public_server_ip == "127.0.0.1"
+                or public_server_ip == "localhost"
+                or public_server_ip == "docker_internal"
+            ):
+                public_server_ip = "Failed to retrieve public IP address"
+
+            # Get internal server IP address
+            if public_server_ip == "Failed to retrieve public IP address":
+                internal_server_ip = server.get('server_ip')
 
             # Create embed
             embed = discord.Embed(
@@ -140,19 +147,29 @@ async def serverinfo(interaction: discord.Interaction, server_id: str):
                 description="Detailed information about this Minecraft server:",
                 color=discord.Color.blue()
             )
-            
+
             # Add fields
             embed.add_field(name="🆔 Server ID", value=server.get('server_id'), inline=True)
             embed.add_field(name="🏷️ Server Type", value=server.get('type'), inline=True)
             embed.add_field(name="🔌 Status", value=status, inline=True)
-            if server_ip == "Failed to retrieve public IP address":
-                embed.add_field(name="🌐 Internal  IP Address", value=server_ip, inline=True)
+            if public_server_ip == "Failed to retrieve public IP address":
+                embed.add_field(
+                    name="🌐 Internal  IP Address", value=internal_server_ip, inline=True
+                )
+                embed.add_field(
+                    name="🌐 Public IP Address", value="Failed to retrieve public IP address", inline=True
+                )
             else:
-                embed.add_field(name="🌐 Public IP Address", value=server_ip, inline=True)
+                embed.add_field(
+                    name="🌐 Public IP Address", value=public_server_ip, inline=True
+                )
+                embed.add_field(
+                    name="🌐 Internal IP Address", value="Cannot get Internal IP!", inline=True
+                )
             embed.add_field(name="🔢 Port", value=server.get('server_port'), inline=True)
-            
+
             embed.set_footer(text="Use /start or /stop to control this server")
-            
+
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message(f"Failed to retrieve information for server ID `{server_id}`.")

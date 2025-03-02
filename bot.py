@@ -51,16 +51,49 @@ async def servers(interaction: discord.Interaction):
         if data.get("status") == "ok":
             servers = data.get("data", [])
             if servers:
-                message = "**Available Servers:**\n"
+                # Create a nicr embed for the servers
+                embed = discord.Embed(
+                    title="Available Minecraft Servers",
+                    description="Here are all available servers from Crafty Controller:",
+                    color=discord.Color.blue()
+                )
+                
+                # Add server information to embed
                 for server in servers:
-                    message += f"• **ID:** {server.get('server_id')}, **Name:** {server.get('server_name')}, **Type:** {server.get('type')}\n"
+                    server_id = server.get('server_id')
+                    server_name = server.get('server_name')
+                    server_type = server.get('type')
+                    
+                    # Get server status if possible (running or offline)
+                    status = "Unknown"
+                    try:
+                        stats_response = requests.get(
+                            f"{CRAFTY_API_URL}/servers/{server_id}/stats", 
+                            headers=HEADERS, 
+                            verify=False
+                        )
+                        stats_data = stats_response.json()
+                        if stats_data.get("status") == "ok":
+                            stats = stats_data.get("data", {})
+                            status = "🟢 Online" if stats.get("running", False) else "🔴 Offline"
+                    except:
+                        status = "🔄 Status Unavailable"
+                    
+                    # Add field for each server
+                    embed.add_field(
+                        name=f"ID: {server_id} | {server_name}",
+                        value=f"**Type:** {server_type}\n**Status:** {status}",
+                        inline=False
+                    )
+                
+                embed.set_footer(text="Use /serverinfo <id> for more details")
+                await interaction.response.send_message(embed=embed)
             else:
-                message = "No servers found."
+                await interaction.response.send_message("No servers found.")
         else:
-            message = "Failed to retrieve servers."
+            await interaction.response.send_message("Failed to retrieve servers.")
     except Exception as e:
-        message = f"Error retrieving servers: {str(e)}"
-    await interaction.response.send_message(message)
+        await interaction.response.send_message(f"Error retrieving servers: {str(e)}")
 
 
 # -----------------------------

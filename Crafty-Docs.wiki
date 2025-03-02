@@ -1,0 +1,1697 @@
+=Introduction=
+
+==Important information==
+
+* A valid token passed via the Authorization HTTP header is required for every single endpoint except <code><nowiki>/api/v2/login</nowiki></code>, <code><nowiki>/api/v2</nowiki></code> and <code><nowiki>/api/v2/jsonschema/*</nowiki></code>
+* A superuser always has access to all the servers and has all the Crafty and server permissions.
+* When a "server permission" is mentioned, it's automatically assumed that the user has access to the current server.
+* When a "Crafty permission" is mentioned, it's automatically assumed that the user does not exceed the creation limit.
+
+==XH examples==
+I'll feature examples using the [https://github.com/ducaale/xh XH HTTP client] and some shell for some endpoints. Please set a shell variable with the name of <code>token</code> if you intend to try the examples.
+
+==Example request in raw HTTP==
+<syntaxhighlight lang="shell">
+POST /api/v2/users HTTP 1.1
+Authorization: Bearer <token here>
+Content-Type: application/json
+
+{
+    "username": "test",
+    "password": "test",
+    "manager": "1"
+    "email": "john.smith@example.com",
+    "lang": "fi_FI",
+    "superuser": true,
+    "theme": "dark",
+}
+</syntaxhighlight>
+
+==JSON schemas==
+* You can get all the JSON schema names by requesting <code><nowiki>/api/v2/jsonschema</nowiki></code>.
+* You can get an individual JSON schema by requesting <code><nowiki>/api/v2/jsonschema/<schema name here></nowiki></code>.
+* You can get some default values for schemas by using https://json-schema-faker.js.org. I recommend setting the useExamplesValue option to true.
+
+Here is a list of available JSON schemas found at [https://gitlab.com/crafty-controller/crafty-4/-/blob/master/app/classes/web/routes/api/jsonschema.py jsonschema.py]:
+* <code>login</code>
+* <code>modify_role</code>
+* <code>create_role</code>
+* <code>server_patch</code>
+* <code>new_server</code>
+* <code>user_patch</code>
+* <code>new_user</code>
+* <code>task_patch</code>
+
+=API V2 Endpoints=
+
+
+
+
+==Authentication requests==
+
+
+
+
+===Log out every single session the token's user has===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Logged in
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/auth/invalidate_tokens
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/auth/invalidate_tokens</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+  "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Log in and get a token===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The user ID and a new JWT
+|-
+! scope="row" |Permission(s) required
+|None
+|-
+! scope="row" |JSON schema
+|<code>login</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+token="$(xh POST https://localhost:8443/api/v2/auth/login -- username=admin password=crafty | jq .data.token -r)"
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/auth/login</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "username": "test",
+    "password": "test"
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "token": "<token here>",
+        "user_id": "1"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+==Role requests==
+
+
+
+
+===Get all the roles===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|All the roles or only the IDs if requested
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/roles
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/roles\?ids\=true
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/roles</nowiki></code>
+
+GET <code><nowiki>/api/v2/roles?ids=true</nowiki></code>
+
+Example response body for the path <code><nowiki>/api/v2/roles</nowiki></code>:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        {
+            "role_id": 1,
+            "created": "05/18/2022, 16:25:45",
+            "last_update": "2022-05-18T16:25:45.377352",
+            "role_name": "test 1234"
+        }
+    ]
+}
+</syntaxhighlight>
+
+Example response body for the path <code><nowiki>/api/v2/roles?ids=true</nowiki></code>:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        1
+    ]
+}
+</syntaxhighlight>
+
+
+
+
+===Create a role===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The new role's ID
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |JSON schema
+|<code>create_role</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/roles -- name='test 1234' servers:='[{"server_id": 1, "permissions": "10101101"}]'
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/roles</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "name": "test role 1234",
+    "servers": [
+        {
+            "server_id": 1,
+            "permissions": "10101101"
+        }
+    ]
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "role_id": 1
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get a role===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The role's data
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |URL <code>role_id</code> placeholder
+|The role's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/roles/1
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/roles/<role_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="shell">
+{
+    "status": "ok",
+    "data": {
+        "role_id": 1,
+        "created": "05/18/2022, 22:49:11",
+        "last_update": "2022-05-18T16:25:45.377352",
+        "role_name": "test 1234"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get a role's servers===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The servers or only the IDs if requested
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |URL <code>role_id</code> placeholder
+|The role's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/roles/1/servers
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/roles/1/servers\?ids\=true
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/roles/<role_id>/servers</nowiki></code>
+
+GET <code><nowiki>/api/v2/roles/<role_id>/servers?ids=true</nowiki></code>
+
+Example response body for the path <code><nowiki>/api/v2/roles/<role_id>/servers</nowiki></code>:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        {
+            "server_id": 1,
+            "permissions": "10101101"
+        }
+    ]
+}
+</syntaxhighlight>
+Example response body for the path <code><nowiki>/api/v2/roles/<role_id>/servers?ids=true</nowiki></code>:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        1
+    ]
+}
+</syntaxhighlight>
+
+
+
+
+===Get a role's users===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The users
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |URL <code>role_id</code> placeholder
+|The role's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/roles/1/users
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/roles/<role_id>/users</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        1
+    ]
+}
+</syntaxhighlight>
+
+
+
+
+===Delete a role===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |URL <code>role_id</code> placeholder
+|The role's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" DELETE https://localhost:8443/api/v2/roles/2
+</syntaxhighlight>
+
+DELETE <code><nowiki>/api/v2/roles/<role_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Modify a role===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |JSON schema
+|<code>modify_role</code>
+|-
+! scope="row" |URL <code>role_id</code> placeholder
+|The role's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" PATCH https://localhost:8443/api/v2/roles/1 -- name='renamed test role 1234' servers:='[{"server_id": 1, "permissions": "10101101"}]'
+</syntaxhighlight>
+
+PATCH <code><nowiki>/api/v2/roles/<role_id></nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "name": "renamed test role 1234",
+    "servers": [
+        {
+            "server_id": 1,
+            "permissions": "10101101"
+        }
+    ]
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json>
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+==Server requests==
+
+
+
+
+===Get all the servers===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|All the servers you have access to
+|-
+! scope="row" |Permission(s) required
+|Logged in
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/servers</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        {
+            "server_id": 1,
+            "created": "2022-05-18T22:36:04.751211",
+            "server_uuid": "e7e107ed-b4fd-4f87-b2dd-b66b4930706e",
+            "server_name": "test server",
+            "path": "/servers/e7e107ed-b4fd-4f87-b2dd-b66b4930706e",
+            "backup_path": "/backups/e7e107ed-b4fd-4f87-b2dd-b66b4930706e",
+            "executable": "paper-1.18.2.jar",
+            "log_path": "/servers/e7e107ed-b4fd-4f87-b2dd-b66b4930706e/logs/latest.log",
+            "execution_command": "java -Xms1000M -Xmx2000M -jar /servers/e7e107ed-b4fd-4f87-b2dd-b66b4930706e/paper-1.18.2.jar nogui",
+            "auto_start": false,
+            "auto_start_delay": 10,
+            "crash_detection": false,
+            "stop_command": "stop",
+            "executable_update_url": "",
+            "server_ip": "127.0.0.1",
+            "server_port": 25565,
+            "logs_delete_after": 0,
+            "type": "minecraft-java"
+        }
+    ]
+}
+</syntaxhighlight>
+
+
+
+
+===Create a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The new server's ID and directory UUID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>SERVER_CREATION</code>
+|-
+! scope="row" |JSON schema
+|<code>new_server</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers -- name='api doc server' monitoring_type='minecraft_java' minecraft_java_monitoring_data:='{"host": "127.0.0.1", "port": 25565}' create_type='minecraft_java' minecraft_java_create_data:='{"create_type": "download_jar", "download_jar_create_data": {"category": "servers", "type": "Paper","version": "1.18.2","mem_min": 1,"mem_max": 2,"server_properties_port": 25565,"agree_to_eula": true}}'
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers -- name='api doc bedrock server' monitoring_type='minecraft_bedrock' minecraft_bedrock_monitoring_data:='{"host": "127.0.0.1", "port": 19132}' create_type='minecraft_bedrock' minecraft_bedrock_create_data:='{"create_type": "import_server", "import_server_create_data": {"existing_server_path": "/var/opt/server","command": "env LD_LIBRARY_PATH=. ./bedrock_server"}}'
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/servers</nowiki></code>
+
+Example request bodies:
+<syntaxhighlight lang="json">
+{
+    "name": "api doc server",
+    "monitoring_type": "minecraft_java",
+    "minecraft_java_monitoring_data": {
+        "host": "127.0.0.1",
+        "port": 25565
+    },
+    "create_type": "minecraft_java",
+    "minecraft_java_create_data": {
+        "create_type": "download_jar",
+        "download_jar_create_data": {
+            "type": "Paper",
+            "version": "1.18.2",
+            "mem_min": 1,
+            "mem_max": 2,
+            "server_properties_port": 25565,
+            "agree_to_eula": true
+        }
+    }
+}
+</syntaxhighlight>
+<syntaxhighlight lang="json">
+{
+    "name": "api doc bedrock server",
+    "monitoring_type": "minecraft_bedrock",
+    "minecraft_bedrock_monitoring_data": {
+        "host": "127.0.0.1",
+        "port": 19132
+    },
+    "create_type": "minecraft_bedrock",
+    "minecraft_bedrock_create_data": {
+        "create_type": "import_server",
+        "import_server_create_data": {
+            "existing_server_path": "/var/opt/server",
+            "command": "env LD_LIBRARY_PATH=. ./bedrock_server"
+        }
+    }
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "new_server_id": "1",
+        "new_server_uuid": "f53b7b9d-48cc-40f1-89ce-331bda9458ba"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The server's data
+|-
+! scope="row" |Permission(s) required
+|Access to the server
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/servers/<server_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "role_id": 1,
+        "created": "05/18/2022, 22:49:11",
+        "last_update": "2022-05-18T16:25:45.377352",
+        "role_name": "test 1234"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Delete a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Server permission <code>CONFIG</code>
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" DELETE https://localhost:8443/api/v2/servers/1
+</syntaxhighlight>
+
+DELETE <code><nowiki>/api/v2/servers/<server_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Modify a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Server permission <code>CONFIG</code>
+|-
+! scope="row" |JSON schema
+|<code>server_patch</code>
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" PATCH https://localhost:8443/api/v2/servers/1 -- server_name='api test server'
+</syntaxhighlight>
+
+PATCH <code><nowiki>/api/v2/servers/<server_id></nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "server_name": "api test server"
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Send an action to a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important, or the new server's ID is cloning a server
+|-
+! scope="row" |Permission(s) required
+|Server permission <code>COMMANDS</code>
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|-
+! scope="row" |URL <code>action</code> placeholder
+|One of <code>clone_server</code>, <code>start_server</code>, <code>stop_server</code>, <code>restart_server</code>, <code>kill_server</code>, <code>backup_server</code>, <code>update_executable</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers/1/action/start_server
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/servers/<server_id>/action/<action></nowiki></code>
+
+Example response bodies:
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+    "data": {
+        "new_server_id": "3"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Send a STDIn command to a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Server permission <code>COMMANDS</code>
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers/1/stdin
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/servers/<server_id>/stdin</nowiki></code>
+
+Example Request Body
+<syntaxhighlight lang="XML">
+say the server will restart in 5 minutes
+</syntaxhighlight>
+
+
+Example response bodies:
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Get a server's logs===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The server's data
+|-
+! scope="row" |Permission(s) required
+|Server permission <code>LOGS</code>
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|-
+! scope="row" |URL <code>file</code> query parameter
+|Whether to read the log file or stdout. Defaults to <code>false</code>
+|-
+! scope="row" |URL <code>colors</code> query parameter
+|Whether to add HTML coloring or not. Defaults to <code>false</code>
+|-
+! scope="row" |URL <code>raw</code> query parameter
+|Whether to disable ANSI stripping or not. Defaults to <code>false</code>
+|-
+! scope="row" |URL <code>html</code> query parameter
+|Whether to output in HTML with <code><nowiki><br/></nowiki></code>'s or with the standard API JSON format with an array of lines. Defaults to <code>false</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/logs
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/logs\?raw\=true\&file\=true
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/logs\?colors\=true\&html\=true
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/servers/<server_id>/logs</nowiki></code>
+
+Example response bodies:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        "Picked up _JAVA_OPTIONS: -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true -Djava.util.prefs.userRoot=&quot;$XDG_CONFIG_HOME&quot;/java",
+        "Starting org.bukkit.craftbukkit.Main",
+        "System Info: Java 18 (OpenJDK 64-Bit Server VM 18.0.1.1+2) Host: Linux 5.17.9-arch1-1 (amd64)",
+        "Loading libraries, please wait...",
+        "2022-05-25 18:27:53,400 ServerMain WARN Advanced terminal features are not available in this environment",
+        "[18:27:55 INFO]: Environment: authHost=&#x27;https://authserver.mojang.com&#x27;, accountsHost=&#x27;https://api.mojang.com&#x27;, sessionHost=&#x27;https://sessionserver.mojang.com&#x27;, servicesHost=&#x27;https://api.minecraftservices.com&#x27;, name=&#x27;PROD&#x27;",
+        "[18:27:56 INFO]: Loaded 7 recipes",
+        "[18:27:57 INFO]: Starting minecraft server version 1.18.2",
+        "[18:27:57 INFO]: Loading properties",
+        "[18:27:57 INFO]: This server is running Paper version git-Paper-344 (MC: 1.18.2) (Implementing API version 1.18.2-R0.1-SNAPSHOT) (Git: 31ccc57)",
+        "[18:27:57 INFO]: Server Ping Player Sample Count: 12",
+        "[18:27:57 INFO]: Using 4 threads for Netty based IO",
+        "[18:27:57 INFO]: Default game type: SURVIVAL",
+        "[18:27:57 INFO]: Generating keypair",
+        "[18:27:57 INFO]: Starting Minecraft server on *:25565",
+        "[18:27:57 INFO]: Using epoll channel type",
+        "[18:27:57 INFO]: Paper: Using libdeflate (Linux x86_64) compression from Velocity.",
+        "[18:27:57 INFO]: Paper: Using OpenSSL 1.1.x (Linux x86_64) cipher from Velocity.",
+        "[18:27:57 INFO]: Server permissions file permissions.yml is empty, ignoring it",
+        "[18:27:57 INFO]: Preparing level &quot;world&quot;",
+        "[18:27:58 INFO]: Preparing start region for dimension minecraft:overworld",
+        "[18:27:58 INFO]: Time elapsed: 157 ms",
+        "[18:27:58 INFO]: Preparing start region for dimension minecraft:the_nether",
+        "[18:27:58 INFO]: Time elapsed: 56 ms",
+        "[18:27:58 INFO]: Preparing start region for dimension minecraft:the_end",
+        "[18:27:58 INFO]: Time elapsed: 90 ms",
+        "[18:27:58 INFO]: Running delayed init tasks",
+        "[18:27:58 INFO]: Done (1.170s)! For help, type &quot;help&quot;",
+        "[18:27:58 INFO]: Timings Reset"
+    ]
+}
+</syntaxhighlight>
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        "[18:27:55] [ServerMain/INFO]: Environment: authHost='https://authserver.mojang.com', accountsHost='https://api.mojang.com', sessionHost='https://sessionserver.mojang.com', servicesHost='https://api.minecraftservices.com', name='PROD'",
+        "[18:27:56] [Worker-Main-3/INFO]: Loaded 7 recipes",
+        "[18:27:57] [Server thread/INFO]: Starting minecraft server version 1.18.2",
+        "[18:27:57] [Server thread/INFO]: Loading properties",
+        "[18:27:57] [Server thread/INFO]: This server is running Paper version git-Paper-344 (MC: 1.18.2) (Implementing API version 1.18.2-R0.1-SNAPSHOT) (Git: 31ccc57)",
+        "[18:27:57] [Server thread/INFO]: Server Ping Player Sample Count: 12",
+        "[18:27:57] [Server thread/INFO]: Using 4 threads for Netty based IO",
+        "[18:27:57] [Server thread/INFO]: Default game type: SURVIVAL",
+        "[18:27:57] [Server thread/INFO]: Generating keypair",
+        "[18:27:57] [Server thread/INFO]: Starting Minecraft server on *:25565",
+        "[18:27:57] [Server thread/INFO]: Using epoll channel type",
+        "[18:27:57] [Server thread/INFO]: Paper: Using libdeflate (Linux x86_64) compression from Velocity.",
+        "[18:27:57] [Server thread/INFO]: Paper: Using OpenSSL 1.1.x (Linux x86_64) cipher from Velocity.",
+        "[18:27:57] [Server thread/INFO]: Server permissions file permissions.yml is empty, ignoring it",
+        "[18:27:57] [Server thread/INFO]: Preparing level \"world\"",
+        "[18:27:58] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld",
+        "[18:27:58] [Server thread/INFO]: Time elapsed: 157 ms",
+        "[18:27:58] [Server thread/INFO]: Preparing start region for dimension minecraft:the_nether",
+        "[18:27:58] [Server thread/INFO]: Time elapsed: 56 ms",
+        "[18:27:58] [Server thread/INFO]: Preparing start region for dimension minecraft:the_end",
+        "[18:27:58] [Server thread/INFO]: Time elapsed: 90 ms",
+        "[18:27:58] [Server thread/INFO]: Running delayed init tasks",
+        "[18:27:58] [Server thread/INFO]: Done (1.170s)! For help, type \"help\"",
+        "[18:27:58] [Server thread/INFO]: Timings Reset"
+    ]
+}
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+Picked up _JAVA_OPTIONS: -Dawt.useSystemAAFontSettings=on -Dswing.aatext=true -Djava.util.prefs.userRoot=&quot;$XDG_CONFIG_HOME&quot;/java<br />Starting org.bukkit.craftbukkit.Main<br />System Info: Java 18 (OpenJDK 64-Bit Server VM 18.0.1.1+2) Host: Linux 5.17.9-arch1-1 (amd64)<br />Loading libraries, please wait...<br />2022-05-25 18:27:53,400 ServerMain WARN Advanced terminal features are not available in this environment<br /><span class="mc-log-info">[18:27:55 INFO]</span>: Environment: authHost=&#x27;https://authserver.mojang.com&#x27;, accountsHost=&#x27;https://api.mojang.com&#x27;, sessionHost=&#x27;https://sessionserver.mojang.com&#x27;, servicesHost=&#x27;https://api.minecraftservices.com&#x27;, name=&#x27;PROD&#x27;<br /><span class="mc-log-info">[18:27:56 INFO]</span>: Loaded 7 recipes<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Starting minecraft server version 1.18.2<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Loading properties<br /><span class="mc-log-info">[18:27:57 INFO]</span>: This server is running Paper version git-Paper-344 (MC: 1.18.2) (Implementing API version 1.18.2-R0.1-SNAPSHOT) (Git: 31ccc57)<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Server Ping Player Sample Count: 12<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Using 4 threads for Netty based IO<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Default game type: SURVIVAL<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Generating keypair<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Starting Minecraft server on *:25565<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Using epoll channel type<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Paper: Using libdeflate (Linux x86_64) compression from Velocity.<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Paper: Using OpenSSL 1.1.x (Linux x86_64) cipher from Velocity.<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Server permissions file permissions.yml is empty, ignoring it<br /><span class="mc-log-info">[18:27:57 INFO]</span>: Preparing level &quot;world&quot;<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Preparing start region for dimension minecraft:overworld<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Time elapsed: 157 ms<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Preparing start region for dimension minecraft:the_nether<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Time elapsed: 56 ms<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Preparing start region for dimension minecraft:the_end<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Time elapsed: 90 ms<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Running delayed init tasks<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Done (1.170s)! For <span class="mc-log-keyword">help</span>, type &quot;<span class="mc-log-keyword">help</span>&quot;<br /><span class="mc-log-info">[18:27:58 INFO]</span>: Timings Reset<br />
+</syntaxhighlight>
+
+
+
+
+===Get a server's public data===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The server's public data
+|-
+! scope="row" |Permission(s) required
+|Logged in
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/public
+</syntaxhighlight>
+
+
+GET <code><nowiki>/api/v2/servers/<server_id>/public</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "server_id": 1,
+        "created": "2022-05-25T01:24:22.427327",
+        "server_name": "aaaaaaaaaaaaaaaa",
+        "type": "minecraft-java"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get a server's statistics===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The server's statistics
+|-
+! scope="row" |Permission(s) required
+|Access to the server
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/stats
+</syntaxhighlight>
+
+
+GET <code><nowiki>/api/v2/servers/<server_id>/stats</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "stats_id": 457,
+        "created": "2022-05-25T18:47:41.814015",
+        "server_id": {
+            "server_id": 1,
+            "created": "2022-05-25T01:24:22.427327",
+            "server_uuid": "6079f8b1-d690-4974-9c0d-792480307a86",
+            "server_name": "aaaaaaaaaaaaaaaa",
+            "path": "/home/luukas/dev/crafty-commander/servers/6079f8b1-d690-4974-9c0d-792480307a86",
+            "backup_path": "/home/luukas/dev/crafty-commander/backups/6079f8b1-d690-4974-9c0d-792480307a86",
+            "executable": "paper-1.18.2.jar",
+            "log_path": "/home/luukas/dev/crafty-commander/servers/6079f8b1-d690-4974-9c0d-792480307a86/logs/latest.log",
+            "execution_command": "java -Xms1000M -Xmx2000M -jar /home/luukas/dev/crafty-commander/servers/6079f8b1-d690-4974-9c0d-792480307a86/paper-1.18.2.jar nogui",
+            "auto_start": false,
+            "auto_start_delay": 10,
+            "crash_detection": false,
+            "stop_command": "stop",
+            "executable_update_url": "",
+            "server_ip": "127.0.0.1",
+            "server_port": 25565,
+            "logs_delete_after": 0,
+            "type": "minecraft-java"
+        },
+        "started": "2022-05-25 15:44:05",
+        "running": true,
+        "cpu": 0.33,
+        "mem": "1.6GB",
+        "mem_percent": 10.0,
+        "world_name": "aaaaaaaaaaaaaaaa",
+        "world_size": "185.4MB",
+        "server_port": 25565,
+        "int_ping_results": "True",
+        "online": 0,
+        "max": 20,
+        "players": "[]",
+        "desc": "A Minecraft Server",
+        "version": "Paper 1.18.2",
+        "updating": false,
+        "waiting_start": false,
+        "first_run": true,
+        "crashed": false,
+        "downloading": false
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get everyone with access to a server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The users with access to the server
+|-
+! scope="row" |Permission(s) required
+|Access to the server, Crafty permission <code>USER_CONFIG</code> and Crafty permission <code>ROLES_CONFIG</code>
+|-
+! scope="row" |URL <code>server_id</code> placeholder
+|The server's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/users
+</syntaxhighlight>
+
+
+GET <code><nowiki>/api/v2/servers/<server_id>/users</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        1,
+        3
+    ]
+}
+</syntaxhighlight>
+
+
+===Create a Schedule For a Server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The new schedule's ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>SCHEDULE</code>
+|-
+! scope="row" |JSON schema
+|<code>new_task</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers/1/tasks/
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/servers/<server_id>/tasks/</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{ 
+    "name": "Test 1234",
+    "enabled": true,
+    "action": "custom_command",
+    "interval": 1,
+    "interval_type": "minutes",
+    "command": "say hello world",
+    "parent": null,
+    "one_time": false,
+    "cron_string": "",
+    "delay": 0
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "schedule_id": "3"
+    }
+}
+</syntaxhighlight>
+
+
+
+===Modify a Schedule For a Server===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| none
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>SCHEDULE</code>
+|-
+! scope="row" |JSON schema
+|<code>patch_task</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" PATCH https://localhost:8443/api/v2/servers/1/tasks/1
+</syntaxhighlight>
+
+PATCH <code><nowiki>/api/v2/servers/<server_id>/tasks/<task_id></nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{ 
+    "name": "Test 5678",
+    "enabled": false,
+}
+</syntaxhighlight>
+
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+}
+</syntaxhighlight>
+
+
+
+===Remove A Schedule===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| none
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>SCHEDULE</code>
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" DELETE https://localhost:8443/api/v2/servers/1/tasks/1
+</syntaxhighlight>
+
+DELETE <code><nowiki>/api/v2/servers/<server_id>/tasks/<task_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+}
+</syntaxhighlight>
+
+===Create A Server Webhook===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| Webhook ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>CONFIG</code>
+|-
+! scope="row" |JSON Schema
+|create_webhook
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers/1/webhook/
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/servers/<server_id>/webhook/</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "webhook_type": "Discord",
+    "name": "My example Webhook",
+    "url": "https://webhook.url.com",
+    "bot_name": "Crafty BOT",
+    "trigger": ["server_start"],
+    "body": "Server Has Started",
+    "enabled": true
+}
+</syntaxhighlight>
+
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "webhook_id": 1,
+     },
+}
+</syntaxhighlight>
+
+===Modify A Server Webhook===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| Webhook ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>CONFIG</code>
+|-
+! scope="row" |JSON Schema
+|patch_webhook
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" PATCH https://localhost:8443/api/v2/servers/1/webhook/1/
+</syntaxhighlight>
+
+PATCH <code><nowiki>/api/v2/servers/<server_id>/webhook/<webhook_id>/</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "webhook_type": "Slack"
+}
+</syntaxhighlight>
+
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+}
+</syntaxhighlight>
+
+
+===Test A Server Webhook===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| Webhook ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>CONFIG</code>
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/servers/1/webhook/1/
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/servers/<server_id>/webhook/<webhook_id>/</nowiki></code>
+
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+}
+</syntaxhighlight>
+
+
+
+===Get All Server Webhooks===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| Webhook ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>CONFIG</code>
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/webhook/
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/servers/<server_id>/webhook/</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "1": {
+            "webhook_type": "Discord",
+            "name": "My example webhook",
+            "url": "https://webhook.example.com",
+            "bot_name": "BIG BOT",
+            "trigger": "server_start,",
+            "body": "Box was started\n",
+            "enabled": true
+        },
+        "2": {
+            "webhook_type": "Discord",
+            "name": "test",
+            "url": "https://webhook.example.com",
+            "bot_name": "Crafty Controller",
+            "trigger": "server_backup,",
+            "body": "test1243\n",
+            "enabled": false
+        }
+    }
+}
+</syntaxhighlight>
+
+
+===Get Webhook===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| Webhook ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>CONFIG</code>
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/servers/1/webhook/3/
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/servers/<server_id>/webhook/<webhook_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "2": {
+            "webhook_type": "Discord",
+            "name": "test",
+            "url": "https://webhook.example.com",
+            "bot_name": "Crafty Controller",
+            "trigger": "server_backup,",
+            "body": "test1243\n",
+            "enabled": false
+        }
+    }
+}
+</syntaxhighlight>
+===Delete Webhooks===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+| Webhook ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>CONFIG</code>
+|-
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" DELETE https://localhost:8443/api/v2/servers/1/webhook/3/
+</syntaxhighlight>
+
+DELETE <code><nowiki>/api/v2/servers/<server_id>/webhook/<webhook_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+}
+</syntaxhighlight>
+
+
+==User requests==
+
+
+
+
+===Get all the users===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|All of the users
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>USER_CONFIG</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/users
+</syntaxhighlight>
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/users\?ids\=true
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/users</nowiki></code>
+
+GET <code><nowiki>/api/v2/users?ids=true</nowiki></code>
+
+Example response body for the path <code><nowiki>/api/v2/users</nowiki></code>:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        {
+            "user_id": 1,
+            "created": "05/18/2022, 01:43:56",
+            "username": "admin",
+            "enabled": true,
+            "superuser": true,
+            "lang": "en_EN"
+        }
+    ]
+}
+</syntaxhighlight>
+
+Example response body for the path <code><nowiki>/api/v2/users?ids=true</nowiki></code>:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": [
+        1
+    ]
+}
+</syntaxhighlight>
+
+
+
+
+===Create a user===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The new user's ID
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>USER_CONFIG</code>
+|-
+! scope="row" |JSON schema
+|<code>new_user</code>
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" POST https://localhost:8443/api/v2/users -- username='test' password='test' email='john.smith@example.com' lang='fi_FI' superuser:='true'
+</syntaxhighlight>
+
+POST <code><nowiki>/api/v2/users</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "username": "test",
+    "password": "test",
+    "manager": "1", (manager's user id)
+    "email": "john.smith@example.com",
+    "lang": "fi_FI",
+    "superuser": true,
+    "theme": "dark",
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "user_id": "3"
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get a user===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The user's data
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>USER_CONFIG</code> if you aren't viewing yourself
+|-
+! scope="row" |URL <code>user_id</code> placeholder
+|The user's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/users/3
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/users/<user_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+
+{
+    "status": "ok",
+    "data": {
+        "user_id": 3,
+        "created": "05/24/2022, 09:44:33",
+        "last_login": "2022-05-24T09:44:33.646325",
+        "last_update": "05/24/2022, 09:44:33",
+        "last_ip": "",
+        "username": "test",
+        "email": "john.smith@example.com",
+        "enabled": true,
+        "superuser": true,
+        "lang": "fi_FI",
+        "support_logs": "",
+        "server_order": "",
+        "preparing": false,
+        "hints": true,
+        "roles": [
+            {
+                "role_id": 1,
+                "created": "05/24/2022, 09:55:43",
+                "last_update": "2022-05-24T09:55:43.373545",
+                "role_name": "my testing role"
+            }
+        ]
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Delete a user===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>USER_CONFIG</code> if you aren't deleting yourself and the <code>allow_self_delete</code> config option is on
+|-
+! scope="row" |URL <code>user_id</code> placeholder
+|The user's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" DELETE https://localhost:8443/api/v2/users/3
+</syntaxhighlight>
+
+DELETE <code><nowiki>/api/v2/users/<user_id></nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Modify a user===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>USER_CONFIG</code> if you aren't modifying yourself
+|-
+! scope="row" |JSON schema
+|<code>user_patch</code>
+|-
+! scope="row" |URL <code>user_id</code> placeholder
+|The user's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" PATCH https://localhost:8443/api/v2/users/3 -- username='johnsmith' roles:='[1]'
+</syntaxhighlight>
+
+PATCH <code><nowiki>/api/v2/users/<user_id></nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "username": "johnsmith",
+    "roles": [1]
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json>
+{
+    "status": "ok"
+}
+</syntaxhighlight>
+
+
+
+
+===Get a user's Crafty permissions===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The user's Crafty permission data including the counters and limits
+|-
+! scope="row" |Permission(s) required
+|Crafty permission <code>USER_CONFIG</code> if you aren't viewing yourself
+|-
+! scope="row" |URL <code>user_id</code> placeholder
+|The user's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/users/3/permissions
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/users/<user_id>/permissions</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "permissions": "110",
+        "counters": {
+            "SERVER_CREATION": 3,
+            "USER_CONFIG": 0,
+            "ROLES_CONFIG": 0
+        },
+        "limits": {
+            "SERVER_CREATION": 5,
+            "USER_CONFIG": 0,
+            "ROLES_CONFIG": 0
+        }
+    }
+}
+</syntaxhighlight>
+
+
+
+
+===Get a user's profile picture===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The user's public data
+|-
+! scope="row" |Permission(s) required
+|Logged in
+|-
+! scope="row" |URL <code>user_id</code> placeholder
+|The user's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/users/3/pfp
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/users/<user_id>/pfp</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": "https://www.gravatar.com/avatar/93431c5d5a2b6a10ab3d5106d44d5590?default=404&rating=g"
+}
+</syntaxhighlight>
+
+
+
+
+===Get a user's public data===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|The user's public data
+|-
+! scope="row" |Permission(s) required
+|Logged in
+|-
+! scope="row" |URL <code>user_id</code> placeholder
+|The user's ID
+|}
+
+XH example(s):
+<syntaxhighlight lang="shell">
+xh -A bearer -a "$token" GET https://localhost:8443/api/v2/users/3/public
+</syntaxhighlight>
+
+GET <code><nowiki>/api/v2/users/<user_id>/public</nowiki></code>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+    "data": {
+        "user_id": 3,
+        "created": "05/24/2022, 09:44:33",
+        "username": "test",
+        "enabled": true,
+        "superuser": true,
+        "lang": "fi_FI",
+        "roles": []
+    }
+}
+</syntaxhighlight>
+
+
+==Crafty requests==
+===Modify Config.json===
+{| class="wikitable"
+|-
+! scope="row" |Response data in practice
+|Nothing important
+|-
+! scope="row" |Permission(s) required
+|Superuser
+|-
+! scope="row" |JSON schema
+|<code>config_json_schema</code>
+
+|}
+PATCH <code><nowiki>/api/v2/crafty/config</nowiki></code>
+
+Example request body:
+<syntaxhighlight lang="json">
+{
+    "http_port": 8000,
+    "https_port": 8443,
+    "keywords": [
+        "help",
+        "chunk",
+        "joined"
+    ],
+
+}
+</syntaxhighlight>
+
+Example response body:
+<syntaxhighlight lang="json">
+{
+    "status": "ok",
+}
+</syntaxhighlight>

@@ -57,14 +57,14 @@ async def servers(interaction: discord.Interaction):
                     description="Here are all available servers from Crafty Controller:",
                     color=discord.Color.blue()
                 )
-                
+
                 # Add server information to embed
                 for server in servers:
-                    server_id = server.get('server_id')
                     server_name = server.get('server_name')
+                    server_id = server.get('server_id')
                     server_type = server.get('type')
-                    
-                    # Get server status if possible (running or offline)
+
+                    # Get server status if possible (running or offline or unk)
                     status = "Unknown"
                     try:
                         stats_response = requests.get(
@@ -77,15 +77,15 @@ async def servers(interaction: discord.Interaction):
                             stats = stats_data.get("data", {})
                             status = "🟢 Online" if stats.get("running", False) else "🔴 Offline"
                     except:
-                        status = "🔄 Status Unavailable"
-                    
+                        status = "⚠️ Status Unavailable, is the Server unloaded?"
+
                     # Add field for each server
                     embed.add_field(
-                        name=f"ID: {server_id} | {server_name}",
+                        name=f"Name: {server_name} | ID: *{server_id}*",
                         value=f"**Type:** {server_type}\n**Status:** {status}",
-                        inline=False
+                        inline=False,
                     )
-                
+
                 embed.set_footer(text="Use /serverinfo <id> for more details")
                 await interaction.response.send_message(embed=embed)
             else:

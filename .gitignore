@@ -172,3 +172,4 @@ cython_debug/
 
 #Own
 config.json
+.vscode

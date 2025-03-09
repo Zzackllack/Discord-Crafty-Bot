@@ -254,7 +254,7 @@ async def stop(interaction: discord.Interaction, server_id: str):
     name="logs",
     description="Display the last few lines of a server's logs by providing its server ID.",
 )
-async def logs(interaction: discord.Interaction, server_id: str):
+async def logs(interaction: discord.Interaction, server_id: str, lines: int = 15):
     try:
         # Adjust query parameters as needed
         params = {"raw": "true", "file": "true"}
@@ -265,19 +265,39 @@ async def logs(interaction: discord.Interaction, server_id: str):
             verify=False,
         )
         data = response.json()
+        
+        # Create embed
+        embed = discord.Embed(
+            title=f"📜 Logs for Server {server_id}",
+            color=discord.Color.blue()
+        )
+        
         if data.get("status") == "ok":
             log_lines = data.get("data", [])
             if log_lines:
-                # Show only the last 10 lines to avoid message limits
-                log_text = "\n".join(log_lines[-10:])
-                message = f"**Logs for server {server_id}:**\n```{log_text}```"
+                # Show the specified number of lines (default 15)
+                log_text = "\n".join(log_lines[-lines:])
+                # Truncate if too long for Discord embed (max 4096 characters)
+                if len(log_text) > 4000:
+                    log_text = log_text[-4000:]
+                    log_text = "...(truncated)...\n" + log_text
+                
+                embed.description = f"```{log_text}```"
+                embed.set_footer(text=f"Showing last {min(lines, len(log_lines))} lines")
             else:
-                message = "No logs available for this server."
+                embed.description = "No logs available for this server."
+                embed.color = discord.Color.light_gray()
         else:
-            message = f"Failed to retrieve logs for server `{server_id}`."
+            embed.description = f"Failed to retrieve logs for server `{server_id}`."
+            embed.color = discord.Color.red()
     except Exception as e:
-        message = f"Error: {str(e)}"
-    await interaction.response.send_message(message)
+        embed = discord.Embed(
+            title="⚠️ Error Retrieving Logs",
+            description=f"Error: {str(e)}",
+            color=discord.Color.red()
+        )
+    
+    await interaction.response.send_message(embed=embed)
 
 
 # Run the bot

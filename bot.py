@@ -191,13 +191,26 @@ async def start(interaction: discord.Interaction, server_id: str):
             verify=False,
         )
         data = response.json()
+        
+        embed = discord.Embed(
+            color=discord.Color.green() if data.get("status") == "ok" else discord.Color.red()
+        )
+        
         if data.get("status") == "ok":
-            message = f"Server **{server_id}** is starting."
+            embed.title = "🚀 Server Starting"
+            embed.description = f"Server **{server_id}** is starting."
         else:
-            message = f"Failed to start server **{server_id}**."
+            embed.title = "❌ Error Starting Server"
+            embed.description = f"Failed to start server **{server_id}**."
+        
     except Exception as e:
-        message = f"Error: {str(e)}"
-    await interaction.response.send_message(message)
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description=f"Error: {str(e)}",
+            color=discord.Color.red()
+        )
+    
+    await interaction.response.send_message(embed=embed)
 
 
 # -----------------------------

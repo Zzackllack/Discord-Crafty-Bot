@@ -192,8 +192,7 @@ async def start(interaction: discord.Interaction, server_id: str):
             description="Starting server, please wait...",
             color=discord.Color.blue()
         )
-        loading_embed.set_image(url="https://i.imgur.com/7nL3y4Y.gif")  # Loading GIF
-
+        
         await interaction.response.send_message(embed=loading_embed)
 
         # Start the server

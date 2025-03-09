@@ -3,6 +3,7 @@ from discord.ext import commands
 import requests
 import json
 import urllib3
+import asyncio  # Add asyncio import for handling delays
 
 # Disable insecure warnings (if using self-signed certificates)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -185,19 +186,134 @@ async def serverinfo(interaction: discord.Interaction, server_id: str):
 )
 async def start(interaction: discord.Interaction, server_id: str):
     try:
+        # Initial response with loading animation
+        loading_embed = discord.Embed(
+            title="🚀 Server Starting",
+            description="Starting server, please wait...",
+            color=discord.Color.blue()
+        )
+        
+        await interaction.response.send_message(embed=loading_embed)
+
+        # Start the server
         response = requests.post(
             f"{CRAFTY_API_URL}/servers/{server_id}/action/start_server",
             headers=HEADERS,
             verify=False,
         )
         data = response.json()
-        if data.get("status") == "ok":
-            message = f"Server **{server_id}** is starting."
-        else:
-            message = f"Failed to start server **{server_id}**."
+
+        if data.get("status") != "ok":
+            # If there's an error, update the message immediately
+            error_embed = discord.Embed(
+                title="❌ Error Starting Server",
+                description=f"Failed to start server **{server_id}**.",
+                color=discord.Color.red()
+            )
+            await interaction.edit_original_response(embed=error_embed)
+            return
+
+        # Wait a bit for server to begin startup process
+        await asyncio.sleep(5)
+
+        # Update the message with logs 5 times, every 10 seconds
+        for i in range(5):
+            try:
+                # Get server logs
+                params = {"raw": "true", "file": "true"}
+                logs_response = requests.get(
+                    f"{CRAFTY_API_URL}/servers/{server_id}/logs",
+                    headers=HEADERS,
+                    params=params,
+                    verify=False,
+                )
+                logs_data = logs_response.json()
+
+                # Create updated embed with logs
+                log_embed = discord.Embed(
+                    title=f"🚀 Server {server_id} Starting - Update {i+1}/5",
+                    description="Server is starting up. Here are the latest logs:",
+                    color=discord.Color.green()
+                )
+
+                if logs_data.get("status") == "ok":
+                    log_lines = logs_data.get("data", [])
+                    if log_lines:
+                        # Show the last 10 lines
+                        log_text = "\n".join(log_lines[-10:])
+                        # Truncate if too long
+                        if len(log_text) > 1000:
+                            log_text = "...(truncated)...\n" + log_text[-1000:]
+
+                        log_embed.add_field(
+                            name="📜 Latest Logs",
+                            value=f"```{log_text}```",
+                            inline=False
+                        )
+                    else:
+                        log_embed.add_field(
+                            name="📜 Logs",
+                            value="No logs available yet.",
+                            inline=False
+                        )
+                else:
+                    log_embed.add_field(
+                        name="📜 Logs",
+                        value="Failed to retrieve logs.",
+                        inline=False
+                    )
+
+                # Add server status check
+                try:
+                    stats_response = requests.get(
+                        f"{CRAFTY_API_URL}/servers/{server_id}/stats", 
+                        headers=HEADERS, 
+                        verify=False
+                    )
+                    stats_data = stats_response.json()
+                    if stats_data.get("status") == "ok":
+                        stats = stats_data.get("data", {})
+                        status = "🟢 Online" if stats.get("running", False) else "🔄 Starting..."
+                        log_embed.add_field(
+                            name="Status",
+                            value=status,
+                            inline=True
+                        )
+                except Exception as e:
+                    log_embed.add_field(
+                        name="Status",
+                        value="⚠️ Unknown",
+                        inline=True
+                    )
+
+                # Update footer with remaining updates info
+                log_embed.set_footer(text=f"Updates remaining: {5-i-1}")
+
+                # Edit the original message with the new embed
+                await interaction.edit_original_response(embed=log_embed)
+
+                # Wait 10 seconds between updates (except after the last one)
+                if i < 4:
+                    await asyncio.sleep(5)
+
+            except Exception as e:
+                # If an update fails, continue to the next one after logging the error
+                print(f"Error updating logs: {str(e)}")
+                await asyncio.sleep(5)
+                continue
+
     except Exception as e:
-        message = f"Error: {str(e)}"
-    await interaction.response.send_message(message)
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description=f"Error: {str(e)}",
+            color=discord.Color.red()
+        )
+
+        # Check if we've already responded
+        try:
+            await interaction.edit_original_response(embed=embed)
+        except:
+            await interaction.response.send_message(embed=embed)
 
 
 # -----------------------------
@@ -212,13 +328,26 @@ async def stop(interaction: discord.Interaction, server_id: str):
             verify=False,
         )
         data = response.json()
+        
+        embed = discord.Embed(
+            color=discord.Color.green() if data.get("status") == "ok" else discord.Color.red()
+        )
+        
         if data.get("status") == "ok":
-            message = f"Server **{server_id}** is stopping."
+            embed.title = "🛑 Server Stopping"
+            embed.description = f"Server **{server_id}** is stopping."
         else:
-            message = f"Failed to stop server **{server_id}**."
+            embed.title = "❌ Error Stopping Server"
+            embed.description = f"Failed to stop server **{server_id}**."
+        
     except Exception as e:
-        message = f"Error: {str(e)}"
-    await interaction.response.send_message(message)
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description=f"Error: {str(e)}",
+            color=discord.Color.red()
+        )
+    
+    await interaction.response.send_message(embed=embed)
 
 
 # -----------------------------
@@ -228,7 +357,7 @@ async def stop(interaction: discord.Interaction, server_id: str):
     name="logs",
     description="Display the last few lines of a server's logs by providing its server ID.",
 )
-async def logs(interaction: discord.Interaction, server_id: str):
+async def logs(interaction: discord.Interaction, server_id: str, lines: int = 15):
     try:
         # Adjust query parameters as needed
         params = {"raw": "true", "file": "true"}
@@ -239,19 +368,39 @@ async def logs(interaction: discord.Interaction, server_id: str):
             verify=False,
         )
         data = response.json()
+        
+        # Create embed
+        embed = discord.Embed(
+            title=f"📜 Logs for Server {server_id}",
+            color=discord.Color.blue()
+        )
+        
         if data.get("status") == "ok":
             log_lines = data.get("data", [])
             if log_lines:
-                # Show only the last 10 lines to avoid message limits
-                log_text = "\n".join(log_lines[-10:])
-                message = f"**Logs for server {server_id}:**\n```{log_text}```"
+                # Show the specified number of lines (default 15)
+                log_text = "\n".join(log_lines[-lines:])
+                # Truncate if too long for Discord embed (max 4096 characters)
+                if len(log_text) > 4000:
+                    log_text = log_text[-4000:]
+                    log_text = "...(truncated)...\n" + log_text
+                
+                embed.description = f"```{log_text}```"
+                embed.set_footer(text=f"Showing last {min(lines, len(log_lines))} lines")
             else:
-                message = "No logs available for this server."
+                embed.description = "No logs available for this server."
+                embed.color = discord.Color.light_gray()
         else:
-            message = f"Failed to retrieve logs for server `{server_id}`."
+            embed.description = f"Failed to retrieve logs for server `{server_id}`."
+            embed.color = discord.Color.red()
     except Exception as e:
-        message = f"Error: {str(e)}"
-    await interaction.response.send_message(message)
+        embed = discord.Embed(
+            title="⚠️ Error Retrieving Logs",
+            description=f"Error: {str(e)}",
+            color=discord.Color.red()
+        )
+    
+    await interaction.response.send_message(embed=embed)
 
 
 # Run the bot

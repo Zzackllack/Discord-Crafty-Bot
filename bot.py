@@ -3,6 +3,7 @@ from discord.ext import commands
 import requests
 import json
 import urllib3
+import asyncio  # Add asyncio import for handling delays
 
 # Disable insecure warnings (if using self-signed certificates)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -185,6 +186,17 @@ async def serverinfo(interaction: discord.Interaction, server_id: str):
 )
 async def start(interaction: discord.Interaction, server_id: str):
     try:
+        # Initial response with loading animation
+        loading_embed = discord.Embed(
+            title="🚀 Server Starting",
+            description="Starting server, please wait...",
+            color=discord.Color.blue()
+        )
+        loading_embed.set_image(url="https://i.imgur.com/WPAN7vJ.gif")  # Loading GIF
+        
+        await interaction.response.send_message(embed=loading_embed)
+        
+        # Start the server
         response = requests.post(
             f"{CRAFTY_API_URL}/servers/{server_id}/action/start_server",
             headers=HEADERS,
@@ -192,25 +204,117 @@ async def start(interaction: discord.Interaction, server_id: str):
         )
         data = response.json()
         
-        embed = discord.Embed(
-            color=discord.Color.green() if data.get("status") == "ok" else discord.Color.red()
-        )
+        if data.get("status") != "ok":
+            # If there's an error, update the message immediately
+            error_embed = discord.Embed(
+                title="❌ Error Starting Server",
+                description=f"Failed to start server **{server_id}**.",
+                color=discord.Color.red()
+            )
+            await interaction.edit_original_response(embed=error_embed)
+            return
+            
+        # Wait a bit for server to begin startup process
+        await asyncio.sleep(5)
         
-        if data.get("status") == "ok":
-            embed.title = "🚀 Server Starting"
-            embed.description = f"Server **{server_id}** is starting."
-        else:
-            embed.title = "❌ Error Starting Server"
-            embed.description = f"Failed to start server **{server_id}**."
-        
+        # Update the message with logs 5 times, every 10 seconds
+        for i in range(5):
+            try:
+                # Get server logs
+                params = {"raw": "true", "file": "true"}
+                logs_response = requests.get(
+                    f"{CRAFTY_API_URL}/servers/{server_id}/logs",
+                    headers=HEADERS,
+                    params=params,
+                    verify=False,
+                )
+                logs_data = logs_response.json()
+                
+                # Create updated embed with logs
+                log_embed = discord.Embed(
+                    title=f"🚀 Server {server_id} Starting - Update {i+1}/5",
+                    description="Server is starting up. Here are the latest logs:",
+                    color=discord.Color.green()
+                )
+                
+                if logs_data.get("status") == "ok":
+                    log_lines = logs_data.get("data", [])
+                    if log_lines:
+                        # Show the last 10 lines
+                        log_text = "\n".join(log_lines[-10:])
+                        # Truncate if too long
+                        if len(log_text) > 1000:
+                            log_text = "...(truncated)...\n" + log_text[-1000:]
+                        
+                        log_embed.add_field(
+                            name="📜 Latest Logs",
+                            value=f"```{log_text}```",
+                            inline=False
+                        )
+                    else:
+                        log_embed.add_field(
+                            name="📜 Logs",
+                            value="No logs available yet.",
+                            inline=False
+                        )
+                else:
+                    log_embed.add_field(
+                        name="📜 Logs",
+                        value="Failed to retrieve logs.",
+                        inline=False
+                    )
+                
+                # Add server status check
+                try:
+                    stats_response = requests.get(
+                        f"{CRAFTY_API_URL}/servers/{server_id}/stats", 
+                        headers=HEADERS, 
+                        verify=False
+                    )
+                    stats_data = stats_response.json()
+                    if stats_data.get("status") == "ok":
+                        stats = stats_data.get("data", {})
+                        status = "🟢 Online" if stats.get("running", False) else "🔄 Starting..."
+                        log_embed.add_field(
+                            name="Status",
+                            value=status,
+                            inline=True
+                        )
+                except Exception as e:
+                    log_embed.add_field(
+                        name="Status",
+                        value="⚠️ Unknown",
+                        inline=True
+                    )
+                
+                # Update footer with remaining updates info
+                log_embed.set_footer(text=f"Updates remaining: {5-i-1}")
+                
+                # Edit the original message with the new embed
+                await interaction.edit_original_response(embed=log_embed)
+                
+                # Wait 10 seconds between updates (except after the last one)
+                if i < 4:
+                    await asyncio.sleep(10)
+                    
+            except Exception as e:
+                # If an update fails, continue to the next one after logging the error
+                print(f"Error updating logs: {str(e)}")
+                await asyncio.sleep(10)
+                continue
+                
     except Exception as e:
         embed = discord.Embed(
             title="⚠️ Error",
             description=f"Error: {str(e)}",
             color=discord.Color.red()
         )
-    
-    await interaction.response.send_message(embed=embed)
+        
+        # Check if we've already responded
+        try:
+            await interaction.edit_original_response(embed=embed)
+        except:
+            await interaction.response.send_message(embed=embed)
 
 
 # -----------------------------

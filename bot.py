@@ -192,10 +192,10 @@ async def start(interaction: discord.Interaction, server_id: str):
             description="Starting server, please wait...",
             color=discord.Color.blue()
         )
-        loading_embed.set_image(url="https://i.imgur.com/WPAN7vJ.gif")  # Loading GIF
-        
+        loading_embed.set_image(url="https://i.imgur.com/7nL3y4Y.gif")  # Loading GIF
+
         await interaction.response.send_message(embed=loading_embed)
-        
+
         # Start the server
         response = requests.post(
             f"{CRAFTY_API_URL}/servers/{server_id}/action/start_server",
@@ -203,7 +203,7 @@ async def start(interaction: discord.Interaction, server_id: str):
             verify=False,
         )
         data = response.json()
-        
+
         if data.get("status") != "ok":
             # If there's an error, update the message immediately
             error_embed = discord.Embed(
@@ -213,10 +213,10 @@ async def start(interaction: discord.Interaction, server_id: str):
             )
             await interaction.edit_original_response(embed=error_embed)
             return
-            
+
         # Wait a bit for server to begin startup process
         await asyncio.sleep(5)
-        
+
         # Update the message with logs 5 times, every 10 seconds
         for i in range(5):
             try:
@@ -229,14 +229,14 @@ async def start(interaction: discord.Interaction, server_id: str):
                     verify=False,
                 )
                 logs_data = logs_response.json()
-                
+
                 # Create updated embed with logs
                 log_embed = discord.Embed(
                     title=f"🚀 Server {server_id} Starting - Update {i+1}/5",
                     description="Server is starting up. Here are the latest logs:",
                     color=discord.Color.green()
                 )
-                
+
                 if logs_data.get("status") == "ok":
                     log_lines = logs_data.get("data", [])
                     if log_lines:
@@ -245,7 +245,7 @@ async def start(interaction: discord.Interaction, server_id: str):
                         # Truncate if too long
                         if len(log_text) > 1000:
                             log_text = "...(truncated)...\n" + log_text[-1000:]
-                        
+
                         log_embed.add_field(
                             name="📜 Latest Logs",
                             value=f"```{log_text}```",
@@ -263,7 +263,7 @@ async def start(interaction: discord.Interaction, server_id: str):
                         value="Failed to retrieve logs.",
                         inline=False
                     )
-                
+
                 # Add server status check
                 try:
                     stats_response = requests.get(
@@ -286,30 +286,30 @@ async def start(interaction: discord.Interaction, server_id: str):
                         value="⚠️ Unknown",
                         inline=True
                     )
-                
+
                 # Update footer with remaining updates info
                 log_embed.set_footer(text=f"Updates remaining: {5-i-1}")
-                
+
                 # Edit the original message with the new embed
                 await interaction.edit_original_response(embed=log_embed)
-                
+
                 # Wait 10 seconds between updates (except after the last one)
                 if i < 4:
-                    await asyncio.sleep(10)
-                    
+                    await asyncio.sleep(5)
+
             except Exception as e:
                 # If an update fails, continue to the next one after logging the error
                 print(f"Error updating logs: {str(e)}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
                 continue
-                
+
     except Exception as e:
         embed = discord.Embed(
             title="⚠️ Error",
             description=f"Error: {str(e)}",
             color=discord.Color.red()
         )
-        
+
         # Check if we've already responded
         try:
             await interaction.edit_original_response(embed=embed)

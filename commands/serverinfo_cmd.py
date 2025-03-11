@@ -11,6 +11,9 @@ class ServerInfoCommand(commands.Cog):
         name="serverinfo", description="Get details of a server. Provide the server ID."
     )
     async def serverinfo(self, interaction: discord.Interaction, server_id: str):
+        # Defer the response to prevent timeout
+        await interaction.response.defer(thinking=True)
+        
         try:
             # Get server info
             data = get_server_info(server_id)
@@ -70,11 +73,11 @@ class ServerInfoCommand(commands.Cog):
 
                 embed.set_footer(text="Use /start or /stop to control this server")
 
-                await interaction.response.send_message(embed=embed)
+                await interaction.followup.send(embed=embed)
             else:
-                await interaction.response.send_message(f"Failed to retrieve information for server ID `{server_id}`.")
+                await interaction.followup.send(f"Failed to retrieve information for server ID `{server_id}`.")
         except Exception as e:
-            await interaction.response.send_message(f"Error: {str(e)}")
+            await interaction.followup.send(f"Error: {str(e)}")
 
 async def setup(bot):
     await bot.add_cog(ServerInfoCommand(bot))

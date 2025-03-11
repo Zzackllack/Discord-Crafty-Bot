@@ -22,9 +22,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     try:
-        # Load all command modules
+        # Load all command modules, but skip __init__.py files
         for filename in os.listdir('./commands'):
-            if filename.endswith('.py'):
+            if filename.endswith('.py') and filename != '__init__.py':
                 await bot.load_extension(f'commands.{filename[:-3]}')
         
         synced = await bot.tree.sync()

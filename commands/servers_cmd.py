@@ -9,13 +9,16 @@ class ServersCommand(commands.Cog):
         
     @app_commands.command(name="servers", description="List all available Minecraft servers")
     async def servers(self, interaction: discord.Interaction):
+        # Defer the response to prevent timeout
+        await interaction.response.defer(thinking=True)
+        
         try:
             data = get_all_servers()
             
             if data.get("status") == "ok":
                 servers = data.get("data", [])
                 if servers:
-                    # Create a nicr embed for the servers
+                    # Create a nice embed for the servers
                     embed = discord.Embed(
                         title="Available Minecraft Servers",
                         description="Here are all available servers from Crafty Controller:",
@@ -35,8 +38,9 @@ class ServersCommand(commands.Cog):
                             if stats_data.get("status") == "ok":
                                 stats = stats_data.get("data", {})
                                 status = "🟢 Online" if stats.get("running", False) else "🔴 Offline"
-                        except:
+                        except Exception as e:
                             status = "⚠️ Status Unavailable, is the Server unloaded?"
+                            print(f"Error getting server stats: {e}")
 
                         # Add field for each server
                         embed.add_field(
@@ -46,13 +50,13 @@ class ServersCommand(commands.Cog):
                         )
 
                     embed.set_footer(text="Use /serverinfo <id> for more details")
-                    await interaction.response.send_message(embed=embed)
+                    await interaction.followup.send(embed=embed)
                 else:
-                    await interaction.response.send_message("No servers found.")
+                    await interaction.followup.send("No servers found.")
             else:
-                await interaction.response.send_message("Failed to retrieve servers.")
+                await interaction.followup.send("Failed to retrieve servers.")
         except Exception as e:
-            await interaction.response.send_message(f"Error retrieving servers: {str(e)}")
+            await interaction.followup.send(f"Error retrieving servers: {str(e)}")
 
 async def setup(bot):
     await bot.add_cog(ServersCommand(bot))

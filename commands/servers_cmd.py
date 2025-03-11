@@ -32,7 +32,7 @@ class ServersCommand(commands.Cog):
                         server_type = server.get('type')
 
                         # Get server status if possible (running or offline or unk)
-                        status = "Unknown"
+                        status = "❓ Unknown"
                         try:
                             stats_data = get_server_stats(server_id)
                             if stats_data.get("status") == "ok":

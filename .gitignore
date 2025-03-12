@@ -173,3 +173,29 @@ cython_debug/
 #Own
 config.json
 .vscode
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+venv/
+ENV/
+
+# Configuration files with sensitive information
+config.json
+
+# Log files
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db

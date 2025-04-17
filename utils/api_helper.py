@@ -92,3 +92,19 @@ def get_all_servers():
     except Exception as e:
         print(f"Error getting servers: {e}")
         return {"status": "error", "message": str(e)}
+
+def get_backup_info(server_id):
+    """Get backup information for a specific server"""
+    try:
+        response = requests.get(
+            f"{get_api_url()}/servers/{server_id}/backups",
+            headers=get_headers(),
+            verify=False,
+        )
+        if response.status_code >= 200 and response.status_code < 300:
+            return response.json()
+        else:
+            return {"status": "error", "code": response.status_code, "message": response.text}
+    except Exception as e:
+        print(f"Error getting backup info: {e}")
+        return {"status": "error", "message": str(e)}

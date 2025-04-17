@@ -25,7 +25,7 @@ A sleek and modern Discord bot designed to interact with the Crafty Controller A
 
 1. Clone the repository:
     ```bash  
-    git clone https://github.com/your-username/Discord-Crafty-Bot.git  
+    git clone https://github.com/zzackllack/Discord-Crafty-Bot.git  
     cd Discord-Crafty-Bot  
     ```  
 

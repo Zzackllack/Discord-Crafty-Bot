@@ -23,13 +23,21 @@ class ServerInfoCommand(commands.Cog):
 
                 # Get server status
                 status = "⚠️ Unknown"
+                embed_color = discord.Color.gold()  
+                # Default to yellow/gold for unknown
                 try:
                     stats_data = get_server_stats(server_id)
                     if stats_data.get("status") == "ok":
                         stats = stats_data.get("data", {})
-                        status = "🟢 Online" if stats.get("running", False) else "🔴 Offline"
+                        if stats.get("running", False):
+                            status = "🟢 Online"
+                            embed_color = discord.Color.green()
+                        else:
+                            status = "🔴 Offline"
+                            embed_color = discord.Color.red()
                 except:
                     status = "⚠️ Status Unavailable"
+                    embed_color = discord.Color.gold()
 
                 # Get public server IP address
                 public_server_ip = server.get('server_ip')
@@ -48,7 +56,7 @@ class ServerInfoCommand(commands.Cog):
                 embed = discord.Embed(
                     title=f"Server Information: {server.get('server_name')}",
                     description="Detailed information about this Minecraft server:",
-                    color=discord.Color.blue()
+                    color=embed_color
                 )
 
                 # Add fields

@@ -81,20 +81,26 @@ class BackupCommand(commands.Cog):
             
             # Initial response with warning embed
             warning_embed = discord.Embed(
-                title="⚠️ Warning: Backup Feature",
-                description="**IMPORTANT:** The backup feature has shown reliability issues in testing. While the API call will be made, backups may not appear in the web UI or backup directory.",
-                color=discord.Color.gold()
+                title="⚠️ Warning: Backup Feature - Known Issue Detected",
+                description="**IMPORTANT:** The backup feature is currently broken in the Crafty API. This is a bug in Crafty Controller itself, not in this bot.",
+                color=discord.Color.red()
             )
             
             warning_embed.add_field(
-                name="Alternative Options",
-                value="1. Use the Crafty Controller web interface to create backups\n2. Use server-specific backup plugins/mods\n3. Set up a scheduled backup task directly on the server",
+                name="Technical Details",
+                value="The API is trying to create a backup but encounters a `BackupsDoesNotExist` error because the backup configuration is missing in the database. The SQL query is attempting to find a backup with ID: `None`.",
                 inline=False
             )
             
             warning_embed.add_field(
-                name="Confirmation Required",
-                value=f"Do you want to proceed with the backup request for {server_name}?",
+                name="Alternative Options",
+                value="1. Use the Crafty Controller web interface to create and configure backups first\n2. Use server-specific backup plugins/mods\n3. Set up a scheduled backup task directly on the server",
+                inline=False
+            )
+            
+            warning_embed.add_field(
+                name="Want to try anyway?",
+                value=f"You can still attempt to back up {server_name}, but it will likely fail with the error shown in your logs.",
                 inline=False
             )
             
@@ -132,24 +138,24 @@ class BackupCommand(commands.Cog):
 
                 # Final response on successful API call
                 final_embed = discord.Embed(
-                    title="✅ Backup Request Sent",
-                    description=f"Backup request for {server_name} has been sent to the Crafty Controller API.",
-                    color=discord.Color.green()
+                    title="✅ Backup Request Sent (But Likely Failed)",
+                    description=f"Backup request for {server_name} was sent to the Crafty Controller API, but likely failed due to the known issue with Crafty's backup system.",
+                    color=discord.Color.gold()
                 )
                 
                 final_embed.add_field(
-                    name="Next Steps",
-                    value="1. Check the Crafty Controller web interface to verify if the backup appears\n2. Verify directly in the backup directory on your server\n3. Check server logs for backup completion messages",
+                    name="Expected Error in Logs",
+                    value="```\nBackupsDoesNotExist: <Model: Backups> instance matching query does not exist\nParams: [None, 1, 0]\n```",
                     inline=False
                 )
                 
                 final_embed.add_field(
-                    name="⚠️ Important Note",
-                    value="If the backup doesn't appear, please use the Crafty Controller web interface directly to perform backups.",
+                    name="How to Fix",
+                    value="1. Create at least one backup configuration in the Crafty Controller web interface\n2. Try using the web interface backup buttons directly\n3. Check the Crafty Controller issue tracker for updates on this bug",
                     inline=False
                 )
                 
-                final_embed.set_footer(text="The bot will not track backup progress due to API limitations")
+                final_embed.set_footer(text="This is a known issue with Crafty Controller's API backup functionality")
                 
                 await interaction.edit_original_response(embed=final_embed, view=None)
                 

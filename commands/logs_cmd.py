@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from utils.api_helper import get_server_logs
+from utils.api_helper import get_server_logs, get_server_stats
 
 class LogsCommand(commands.Cog):
     def __init__(self, bot):
@@ -16,10 +16,25 @@ class LogsCommand(commands.Cog):
             # Get the logs
             data = get_server_logs(server_id)
             
+            # Determine color based on server status if possible
+            embed_color = discord.Color.blue()  # Default
+            
+            try:
+                stats_data = get_server_stats(server_id)
+                if stats_data.get("status") == "ok":
+                    stats = stats_data.get("data", {})
+                    if stats.get("running", False):
+                        embed_color = discord.Color.green()  # Green if running
+                    else:
+                        embed_color = discord.Color.red()   # Red if offline
+            except Exception:
+                # Keep default color if error
+                pass
+            
             # Create embed
             embed = discord.Embed(
                 title=f"📜 Logs for Server {server_id}",
-                color=discord.Color.blue()
+                color=embed_color
             )
             
             if data.get("status") == "ok":

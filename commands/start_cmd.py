@@ -44,11 +44,25 @@ class StartCommand(commands.Cog):
                     # Get server logs
                     logs_data = get_server_logs(server_id)
 
+                    # Check server status to determine embed color
+                    embed_color = discord.Color.gold()  # Default yellow for starting
+                    
+                    try:
+                        stats_data = get_server_stats(server_id)
+                        if stats_data.get("status") == "ok":
+                            stats = stats_data.get("data", {})
+                            if stats.get("running", False):
+                                embed_color = discord.Color.green()  # Green if running
+                            else:
+                                embed_color = discord.Color.gold()   # Yellow if still starting
+                    except Exception:
+                        pass  # Keep default color if error
+                    
                     # Create updated embed with logs
                     log_embed = discord.Embed(
                         title=f"🚀 Server {server_id} Starting - Update {i+1}/5",
                         description="Server is starting up. Here are the latest logs:",
-                        color=discord.Color.green()
+                        color=embed_color
                     )
 
                     if logs_data.get("status") == "ok":

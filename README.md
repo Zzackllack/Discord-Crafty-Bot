@@ -51,7 +51,8 @@ A sleek and modern Discord bot designed to interact with the Crafty Controller A
 | `/serverinfo`    | Get detailed information about a server.      | `/serverinfo <server_id>`    |  
 | `/start`         | Start a Minecraft server.                    | `/start <server_id>`         |  
 | `/stop`          | Stop a Minecraft server.                     | `/stop <server_id>`          |  
-| `/logs`          | Fetch the latest logs of a server.           | `/logs <server_id> <lines>`  |  
+| `/logs`          | Fetch the latest logs of a server.           | `/logs <server_id> <lines>`  |
+| `/backup`        | Create a backup of a server.                  | `/backup <server_id>`        |
 
 ## 🧩 Project Structure
 

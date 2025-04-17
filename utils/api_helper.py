@@ -101,7 +101,10 @@ def get_backup_info(server_id):
             headers=get_headers(),
             verify=False,
         )
-        return response.json()
+        if response.status_code >= 200 and response.status_code < 300:
+            return response.json()
+        else:
+            return {"status": "error", "code": response.status_code, "message": response.text}
     except Exception as e:
         print(f"Error getting backup info: {e}")
         return {"status": "error", "message": str(e)}
